@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#07c160">
+<link rel="manifest" href="manifest.json">
+<title>UI Preview Tool</title>
+<style>
+:root{--green:#07c160;--blue:#1677ff;--red:#fa2c19;--pink:#fe2c55;--dark:#111;--gray:#f5f5f5;--border:#e8e8e8;--text:#333;--text2:#999;--radius:12px;--gold:#f0a020}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Hiragino Sans GB','Microsoft YaHei',Helvetica,Arial,sans-serif;background:#f5f5f5;color:var(--text);font-size:16px;-webkit-font-smoothing:antialiased;overscroll-behavior:none;height:100%}
+input,select,textarea,button{font-family:inherit;font-size:inherit;outline:none;border:none;-webkit-appearance:none;appearance:none}
+button{cursor:pointer;background:none}
+img{display:block;max-width:100%}
+
+/* ===== App Container ===== */
+#app{max-width:430px;margin:0 auto;height:100vh;position:relative;overflow:hidden;background:#f5f5f5}
+
+/* ===== Screen System ===== */
+.screen{position:absolute;top:0;left:0;width:100%;height:100%;overflow-y:auto;overflow-x:hidden;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);z-index:1;background:#f5f5f5;-webkit-overflow-scrolling:touch;will-change:transform}
+.screen.active{transform:translateX(0);z-index:10}
+.screen.prev{transform:translateX(-30%);z-index:5}
+
+/* ===== Home Screen ===== */
+.home-header{background:linear-gradient(135deg,var(--green),#05a854);padding:60px 24px 32px;color:#fff;position:relative}
+.home-header h1{font-size:24px;font-weight:700}
+.home-header p{font-size:13px;opacity:.8;margin-top:6px}
+.home-grid{padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.home-card{background:#fff;border-radius:var(--radius);padding:20px 16px;position:relative;overflow:hidden;transition:transform .15s}
+.home-card:active{transform:scale(.97)}
+.home-card .icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;margin-bottom:12px}
+.home-card .name{font-size:15px;font-weight:600;color:var(--text)}
+.home-card .desc{font-size:12px;color:var(--text2);margin-top:4px}
+
+/* ===== Disclaimer ===== */
+.disclaimer{background:#fff3cd;border-left:4px solid #f0ad4e;padding:12px 16px;margin:12px 16px 0;border-radius:0 8px 8px 0;font-size:12px;color:#856404;line-height:1.6}
+.disclaimer strong{color:#c8102e}
+
+/* ===== Status Bar ===== */
+.statusbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px 6px;height:48px;position:relative;z-index:10}
+.statusbar .time{font-size:16px;font-weight:700;letter-spacing:-.2px}
+.statusbar .right{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600}
+.statusbar .signal{display:flex;gap:1.5px;align-items:flex-end;height:11px}
+.statusbar .signal i{display:block;width:3px;border-radius:1px}
+.statusbar .batt{width:27px;height:12px;border:1.5px solid currentColor;border-radius:3px;position:relative;padding:1.5px}
+.statusbar .batt::after{content:'';position:absolute;right:-5px;top:2.5px;width:2.5px;height:5px;background:currentColor;border-radius:0 2px 2px 0}
+.statusbar .batt-fill{height:100%;border-radius:1px}
+
+/* ===== Nav Bar ===== */
+.navbar{display:flex;align-items:center;padding:6px 8px 12px;position:relative}
+.navbar .back-btn{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:28px;font-weight:300;color:inherit;transition:background .15s}
+.navbar .back-btn:active{background:rgba(255,255,255,.15)}
+.navbar .title{position:absolute;left:50%;transform:translateX(-50%);font-size:17px;font-weight:600}
+.navbar .right-btn{position:absolute;right:16px;font-size:14px;opacity:.8}
+
+/* ===== Form Components ===== */
+.form-section{padding:16px}
+.form-card{background:#fff;border-radius:var(--radius);padding:4px 0;margin-bottom:12px;overflow:hidden}
+.form-item{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid #f5f5f5}
+.form-item:last-child{border-bottom:none}
+.form-item label{width:90px;font-size:14px;color:var(--text2);flex-shrink:0}
+.form-item input,.form-item select{flex:1;font-size:15px;color:var(--text);background:transparent;text-align:right;padding:0}
+.form-item input::placeholder{color:#ccc}
+.form-item select{direction:rtl}
+.form-item .suffix{font-size:13px;color:var(--text2);margin-left:4px}
+
+/* ===== Preview Frame ===== */
+.preview-frame{margin:0 16px 16px;border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,.08);position:relative;background:#fff}
+.preview-inner{position:relative}
+
+/* ===== Export Bar ===== */
+.export-bar{padding:12px 16px 32px;display:flex;gap:10px}
+.export-bar button{flex:1;padding:14px;border-radius:10px;font-size:15px;font-weight:600;transition:opacity .15s}
+.export-bar button:active{opacity:.7}
+.btn-primary{background:var(--green);color:#fff}
+.btn-secondary{background:#fff;color:var(--text);border:1px solid var(--border)}
+
+/* ===== WeChat Transfer ===== */
+.wx-transfer-page{background:#ededed;min-height:100%}
+.wx-transfer-top{background:#fff;padding:24px 20px;display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.wx-transfer-avatar{width:48px;height:48px;border-radius:6px;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:600;flex-shrink:0}
+.wx-transfer-name{font-size:17px;font-weight:500}
+.wx-success-page{background:#ededed;min-height:100%}
+.wx-success-top{background:#fff;padding:40px 20px 32px;text-align:center}
+.wx-success-icon{width:64px;height:64px;border-radius:50%;background:var(--green);margin:0 auto 16px;display:flex;align-items:center;justify-content:center}
+.wx-success-icon svg{width:32px;height:32px;fill:#fff}
+.wx-success-title{font-size:18px;font-weight:600;margin-bottom:8px}
+.wx-success-amount{font-size:40px;font-weight:200;font-family:'DIN Alternate','Helvetica Neue',sans-serif;letter-spacing:-1px}
+.wx-success-amount .sym{font-size:20px;font-weight:400;margin-right:2px}
+.wx-success-detail{background:#fff;margin-top:10px}
+.wx-success-detail .row{display:flex;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #f5f5f5;font-size:14px}
+.wx-success-detail .row .k{color:var(--text2)}
+.wx-success-detail .row:last-child{border-bottom:none}
+
+/* ===== Alipay ===== */
+.ali-page{background:linear-gradient(180deg,var(--blue) 0%,var(--blue) 260px,#f5f5f5 260px);min-height:100%}
+.ali-page .statusbar,.ali-page .navbar{color:#fff}
+.ali-balance-area{text-align:center;padding:20px 0 36px;color:#fff}
+.ali-balance-area .label{font-size:14px;opacity:.8;margin-bottom:12px}
+.ali-balance-area .amount{font-size:46px;font-weight:200;font-family:'DIN Alternate','Helvetica Neue',sans-serif;letter-spacing:-1px}
+.ali-balance-area .amount .sym{font-size:22px;margin-right:2px;font-weight:400}
+.ali-btn-row{display:flex;justify-content:center;gap:40px;padding-bottom:28px}
+.ali-btn-item{display:flex;flex-direction:column;align-items:center;color:#fff;gap:8px}
+.ali-btn-item .circle{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center}
+.ali-btn-item span{font-size:12px;opacity:.9}
+.ali-card{background:#fff;border-radius:var(--radius);margin:0 16px 12px;overflow:hidden}
+.ali-card-row{display:flex;align-items:center;padding:16px;border-bottom:1px solid #f8f8f8}
+.ali-card-row:last-child{border-bottom:none}
+.ali-card-row .ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:12px;font-size:18px;color:#fff;flex-shrink:0}
+.ali-card-row .info{flex:1}
+.ali-card-row .info .t{font-size:15px}
+.ali-card-row .info .d{font-size:12px;color:var(--text2);margin-top:2px}
+.ali-card-row .val{font-size:14px;color:var(--text);margin-right:4px}
+.ali-card-row .arrow{color:#c8c8c8}
+
+/* ===== Douyin (Real Style - Light Theme) ===== */
+.dy-page{background:#f5f5f5;min-height:100%}
+.dy-page .statusbar,.dy-page .navbar{color:#333}
+.dy-topbar{display:flex;align-items:center;padding:6px 16px 10px;gap:8px}
+.dy-topbar .dy-title{font-size:18px;font-weight:600;color:#333}
+.dy-topbar .dy-tag{font-size:11px;color:#999;background:#f0f0f0;padding:2px 8px;border-radius:12px}
+.dy-topbar .dy-icons{margin-left:auto;display:flex;gap:16px}
+.dy-blue-card{background:linear-gradient(135deg,#4a7dff 0%,#6b9bff 50%,#8fb5ff 100%);border-radius:16px;margin:0 14px 14px;padding:20px;color:#fff;position:relative;overflow:hidden}
+.dy-blue-card::before{content:'';position:absolute;top:-40px;right:-20px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.08)}
+.dy-blue-card .dy-total-label{font-size:13px;opacity:.85;display:flex;align-items:center;gap:6px}
+.dy-blue-card .dy-total-label .safe-tag{font-size:11px;background:rgba(255,255,255,.2);padding:1px 6px;border-radius:10px}
+.dy-blue-card .dy-total-amount{font-size:44px;font-weight:300;font-family:'DIN Alternate','Helvetica Neue',sans-serif;letter-spacing:-1px;margin:8px 0 16px}
+.dy-blue-card .dy-stats{display:flex;border-top:1px solid rgba(255,255,255,.15);padding-top:14px}
+.dy-blue-card .dy-stats .dy-stat{flex:1;text-align:center}
+.dy-blue-card .dy-stats .dy-stat .v{font-size:20px;font-weight:600;font-family:'DIN Alternate',sans-serif}
+.dy-blue-card .dy-stats .dy-stat .l{font-size:11px;opacity:.7;margin-top:4px}
+.dy-bill-row{background:#fff;border-radius:12px;margin:0 14px 10px;padding:14px 16px;display:flex;align-items:center;font-size:13px;color:#666}
+.dy-bill-row .bill-label{font-weight:600;color:#333;margin-right:8px}
+.dy-bill-row .bill-all{margin-left:auto;color:#999;font-size:13px}
+.dy-service-grid{background:#fff;border-radius:12px;margin:0 14px 10px;padding:16px 0 8px;display:grid;grid-template-columns:repeat(4,1fr)}
+.dy-service-item{display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:6px}
+.dy-service-item .sico{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px}
+.dy-service-item .stxt{font-size:11px;color:#333}
+.dy-asset-card{background:#fff;border-radius:12px;margin:0 14px 10px;overflow:hidden}
+.dy-asset-row{display:flex;align-items:center;padding:18px 16px;border-bottom:1px solid #f5f5f5}
+.dy-asset-row:last-child{border-bottom:none}
+.dy-asset-row .aico{width:32px;height:32px;border-radius:50%;border:1.5px solid #e0e0e0;display:flex;align-items:center;justify-content:center;margin-right:10px;font-size:14px;flex-shrink:0}
+.dy-asset-row .ainfo{flex:1}
+.dy-asset-row .ainfo .at{font-size:15px;font-weight:500;color:#333;display:flex;align-items:center;gap:6px}
+.dy-asset-row .ainfo .at .atag{font-size:10px;color:#07c160;border:1px solid #07c160;padding:0 4px;border-radius:8px}
+.dy-asset-row .ainfo .at .atag-red{font-size:10px;color:#ff4d4f;background:#fff1f0;padding:1px 6px;border-radius:8px}
+.dy-asset-row .ainfo .ad{font-size:12px;color:#999;margin-top:3px}
+.dy-asset-row .aval{font-size:17px;font-weight:500;color:#333;font-family:'DIN Alternate',sans-serif;margin-right:4px}
+.dy-asset-row .aarrow{color:#ccc;font-size:16px}
+
+/* ===== Bank ===== */
+.bank-page{background:#f5f5f5;min-height:100%}
+.bank-card-visual{margin:20px 16px;border-radius:16px;padding:24px;color:#fff;position:relative;overflow:hidden;min-height:190px}
+.bank-card-visual::before{content:'';position:absolute;top:-30%;right:-10%;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.06)}
+.bank-card-visual::after{content:'';position:absolute;bottom:-40%;left:-5%;width:250px;height:250px;border-radius:50%;background:rgba(255,255,255,.04)}
+.bank-card-visual .row1{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+.bank-card-visual .blogo{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700}
+.bank-card-visual .bname{font-size:17px;font-weight:600}
+.bank-card-visual .btype{font-size:12px;opacity:.7;margin-top:2px}
+.bank-card-visual .cardno{font-size:24px;letter-spacing:4px;font-family:'Courier New','SF Mono',monospace;margin-top:24px;position:relative;z-index:1}
+.bank-card-visual .bal-area{margin-top:20px;position:relative;z-index:1}
+.bank-card-visual .bal-label{font-size:12px;opacity:.6}
+.bank-card-visual .bal-val{font-size:34px;font-weight:200;margin-top:4px;font-family:'DIN Alternate','Helvetica Neue',sans-serif;letter-spacing:-1px}
+.bank-detail-card{background:#fff;border-radius:var(--radius);margin:0 16px 12px;overflow:hidden}
+.bank-detail-row{display:flex;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #f5f5f5;font-size:14px}
+.bank-detail-row:last-child{border-bottom:none}
+.bank-detail-row .k{color:var(--text2)}
+.bank-trans{background:#fff;border-radius:var(--radius);margin:0 16px 16px;padding:16px 20px}
+.bank-trans h3{font-size:15px;font-weight:600;margin-bottom:12px}
+.bank-trans-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f8f8f8}
+.bank-trans-item:last-child{border-bottom:none}
+.bank-trans-item .name{font-size:14px}
+.bank-trans-item .date{font-size:12px;color:var(--text2);margin-top:2px}
+.bank-trans-item .amt{font-size:15px;font-weight:500;font-family:'DIN Alternate',sans-serif}
+.bank-trans-item .amt.in{color:var(--green)}
+
+/* ===== WeChat Chat ===== */
+.wx-chat-page{background:#ececec;min-height:680px;display:flex;flex-direction:column}
+.wx-chat-body{flex:1;padding:12px 12px 16px;overflow-y:auto}
+.wx-chat-time{text-align:center;padding:8px 0;font-size:11px;color:#b2b2b2}
+.wx-chat-time span{background:rgba(0,0,0,.06);padding:2px 8px;border-radius:4px;font-size:11px;color:#999}
+.wx-chat-row{display:flex;align-items:flex-start;margin-bottom:14px;gap:8px}
+.wx-chat-row.me{flex-direction:row-reverse}
+.wx-chat-avatar{width:40px;height:40px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:600;flex-shrink:0}
+.wx-chat-bubble{max-width:65%;padding:10px 12px;border-radius:6px;font-size:15px;line-height:1.5;position:relative;word-break:break-word}
+.wx-chat-row:not(.me) .wx-chat-bubble{background:#fff;color:#333;border-top-left-radius:2px}
+.wx-chat-row:not(.me) .wx-chat-bubble::before{content:'';position:absolute;left:-6px;top:10px;border:6px solid transparent;border-right-color:#fff;border-left:0}
+.wx-chat-row.me .wx-chat-bubble{background:#95ec69;color:#333;border-top-right-radius:2px}
+.wx-chat-row.me .wx-chat-bubble::before{content:'';position:absolute;right:-6px;top:10px;border:6px solid transparent;border-left-color:#95ec69;border-right:0}
+.wx-chat-input-bar{background:#f5f5f5;border-top:1px solid #ddd;padding:8px 10px;display:flex;align-items:center;gap:8px}
+.wx-chat-input-bar .voice-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center}
+.wx-chat-input-bar .input-area{flex:1;background:#fff;border-radius:6px;padding:8px 10px;font-size:15px;color:#999;min-height:18px}
+.wx-chat-input-bar .emoji-btn,.wx-chat-input-bar .plus-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center}
+.chat-msg-list{max-height:300px;overflow-y:auto;border:1px solid #e8e8e8;border-radius:8px;background:#fff;margin-bottom:12px}
+.chat-msg-item{display:flex;align-items:center;padding:10px 12px;border-bottom:1px solid #f5f5f5;font-size:13px;gap:8px}
+.chat-msg-item:last-child{border-bottom:none}
+.chat-msg-item .tag{width:36px;font-size:11px;color:#999;flex-shrink:0;text-align:center}
+.chat-msg-item .txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.chat-msg-item .del-btn{width:24px;height:24px;border-radius:50%;background:#ff4d4f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0}
+.chat-add-row{display:flex;gap:6px;margin-bottom:12px}
+.chat-add-row select,.chat-add-row input{flex:1;padding:10px;border:1px solid #e8e8e8;border-radius:8px;font-size:14px;background:#fff}
+.chat-add-row select{flex:0 0 80px}
+.chat-add-row .add-btn{flex:0 0 48px;background:#07c160;color:#fff;border-radius:8px;font-size:20px;font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer}
+
+/* ===== Utility ===== */
+.home-indicator{width:134px;height:5px;background:#333;border-radius:3px;margin:8px auto 4px}
+.home-indicator.light{background:rgba(255,255,255,.3)}
+.hidden{display:none!important}
+.safe-bottom{padding-bottom:env(safe-area-inset-bottom,0)}
+
+/* ===== Custom Modal ===== */
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;pointer-events:none}
+.modal-overlay.show{opacity:1;pointer-events:auto}
+.modal-box{background:#fff;border-radius:14px;width:280px;max-width:88vw;overflow:hidden;transform:scale(.9);transition:transform .2s}
+.modal-overlay.show .modal-box{transform:scale(1)}
+.modal-body{padding:24px 20px 16px;text-align:center}
+.modal-body .modal-title{font-size:17px;font-weight:600;color:#333;margin-bottom:8px}
+.modal-body .modal-msg{font-size:14px;color:#666;line-height:1.6}
+.modal-btns{display:flex;border-top:1px solid #e8e8e8}
+.modal-btns button{flex:1;padding:14px;font-size:16px;background:none;border:none;cursor:pointer;transition:background .15s}
+.modal-btns button:active{background:#f0f0f0}
+.modal-btns button.modal-cancel{color:#666;border-right:1px solid #e8e8e8}
+.modal-btns button.modal-ok{color:#07c160;font-weight:600}
+.modal-btns button:only-child{border-right:none}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="screen active" id="homeScreen">
+  <div class="home-header">
+    <h1>钱包模拟器</h1>
+    <p>多平台钱包界面模拟 v3.0</p>
+  </div>
+  <div class="disclaimer">
+    <strong>仅供娱乐用途，切勿用于任何违法活动！</strong><br>
+    所有展示内容均为模拟数据，不代表真实账户信息。使用者需自行承担因不当使用产生的一切后果。
+  </div>
+  <div class="home-grid" id="homeGrid"></div>
+</div>
+<div class="screen" id="editorScreen"><div id="editorContent"></div></div>
+<div class="screen" id="previewScreen"><div id="previewContent"></div></div>
+</div>
+<div class="modal-overlay" id="modalOverlay"><div class="modal-box"><div class="modal-body"><div class="modal-title" id="modalTitle"></div><div class="modal-msg" id="modalMsg"></div></div><div class="modal-btns" id="modalBtns"></div></div></div>
+
+<script>
+// ===== BANKS DATA =====
+const BANKS=[
+{n:'中国工商银行',s:'工商银行',c:'#c8102e',code:'ICBC'},
+{n:'中国农业银行',s:'农业银行',c:'#00a982',code:'ABC'},
+{n:'中国银行',s:'中国银行',c:'#c8102e',code:'BOC'},
+{n:'中国建设银行',s:'建设银行',c:'#0054a6',code:'CCB'},
+{n:'交通银行',s:'交通银行',c:'#1a3a6e',code:'BOCOM'},
+{n:'中国邮政储蓄银行',s:'邮储银行',c:'#007a4d',code:'PSBC'},
+{n:'招商银行',s:'招商银行',c:'#c8102e',code:'CMB'},
+{n:'中国民生银行',s:'民生银行',c:'#00a3e0',code:'CMBC'},
+{n:'兴业银行',s:'兴业银行',c:'#003da5',code:'CIB'},
+{n:'浦发银行',s:'浦发银行',c:'#003087',code:'SPDB'},
+{n:'中信银行',s:'中信银行',c:'#c8102e',code:'CITIC'},
+{n:'光大银行',s:'光大银行',c:'#6b2fa0',code:'CEB'},
+{n:'华夏银行',s:'华夏银行',c:'#c8102e',code:'HXB'},
+{n:'广发银行',s:'广发银行',c:'#c8102e',code:'CGB'},
+{n:'平安银行',s:'平安银行',c:'#fa6400',code:'PAB'},
+{n:'北京银行',s:'北京银行',c:'#c8102e',code:'BOB'},
+{n:'上海银行',s:'上海银行',c:'#003087',code:'BOS'},
+{n:'南京银行',s:'南京银行',c:'#c8102e',code:'NJCB'},
+{n:'宁波银行',s:'宁波银行',c:'#e87722',code:'NBCB'},
+{n:'江苏银行',s:'江苏银行',c:'#003da5',code:'JSB'},
+{n:'杭州银行',s:'杭州银行',c:'#0054a6',code:'HZCB'},
+{n:'长沙银行',s:'长沙银行',c:'#c8102e',code:'CSB'},
+{n:'成都银行',s:'成都银行',c:'#003087',code:'CDCB'},
+{n:'重庆银行',s:'重庆银行',c:'#003da5',code:'CQB'},
+{n:'天津银行',s:'天津银行',c:'#003087',code:'TJB'},
+{n:'青岛银行',s:'青岛银行',c:'#0054a6',code:'QDCCB'},
+{n:'郑州银行',s:'郑州银行',c:'#c8102e',code:'ZZB'},
+{n:'西安银行',s:'西安银行',c:'#003da5',code:'XAB'},
+{n:'哈尔滨银行',s:'哈尔滨银行',c:'#003087',code:'HRB'},
+{n:'徽商银行',s:'徽商银行',c:'#c8102e',code:'HSB'},
+{n:'渤海银行',s:'渤海银行',c:'#003da5',code:'CBHB'},
+{n:'恒丰银行',s:'恒丰银行',c:'#c8102e',code:'EGB'},
+{n:'浙商银行',s:'浙商银行',c:'#003087',code:'CZB'},
+{n:'网商银行',s:'网商银行',c:'#1677ff',code:'MYB'},
+{n:'微众银行',s:'微众银行',c:'#07c160',code:'WEB'},
+{n:'新网银行',s:'新网银行',c:'#ff6600',code:'XWB'},
+{n:'北京农商银行',s:'北京农商',c:'#007a4d',code:'BJRCB'},
+{n:'上海农商银行',s:'上海农商',c:'#007a4d',code:'SHRCB'},
+{n:'广州农商银行',s:'广州农商',c:'#007a4d',code:'GRCB'},
+{n:'重庆农商银行',s:'重庆农商',c:'#007a4d',code:'CQRCB'},
+{n:'深圳农商银行',s:'深圳农商',c:'#007a4d',code:'SZRCB'},
+];
+
+const MODULES=[
+{id:'wx-balance',name:'微信零钱',desc:'零钱余额页面',icon:'#07c160',emoji:'&#128176;'},
+{id:'wx-lqt',name:'零钱通',desc:'零钱通理财余额',icon:'#f7a21d',emoji:'&#128200;'},
+{id:'wx-transfer',name:'微信转账',desc:'转账成功截图',icon:'#2aae67',emoji:'&#128179;'},
+{id:'wx-receive',name:'微信收款',desc:'收款到账截图',icon:'#576b95',emoji:'&#128181;'},
+{id:'ali-balance',name:'支付宝余额',desc:'账户余额页面',icon:'#1677ff',emoji:'&#128176;'},
+{id:'ali-transfer',name:'支付宝转账',desc:'转账成功截图',icon:'#1677ff',emoji:'&#128179;'},
+{id:'dy-wallet',name:'抖音钱包',desc:'钱包余额/快币/抖币',icon:'#111',emoji:'&#127916;'},
+{id:'bank-card',name:'银行卡余额',desc:'70+银行卡界面',icon:'#c8102e',emoji:'&#127974;'},
+{id:'bank-transfer',name:'银行转账',desc:'银行转账成功',icon:'#0054a6',emoji:'&#128179;'},
+{id:'wx-chat',name:'微信聊天',desc:'聊天记录截图',icon:'#07c160',emoji:'&#128172;'},
+];
+
+// ===== STATE =====
+let S={
+  time:'9:41',bat:100,net:'WiFi',
+  wxBal:'88888.00',wxLqt:'66666.00',wxLqtYtd:'+12.88',wxLqtTotal:'1288.66',wxLqtRate:'2.45',wxLqtFund:'博时保证金C',
+  wxTrName:'张三',wxTrId:'zhangsan',wxTrAmount:'5200.00',wxTrNote:'转账',wxTrMethod:'零钱',wxTrTime:'',wxTrOrderId:'',
+  wxRcFrom:'李四',wxRcAmount:'8888.00',wxRcTime:'',wxRcOrderId:'',
+  aliBal:'99999.00',aliYuebao:'188888.00',aliHuabei:'12000.00',
+  aliTrName:'张三',aliTrAccount:'138****8888',aliTrAmount:'10000.00',aliTrTime:'',aliTrOrderId:'',
+  dyBal:'58888.00',dyKb:'66800',dyDb:'128000',dyDiamond:'0',dyGold:'48',dyCoupon:'2',dyBankCards:'4',dyZeroMoney:'0.39',dyIncome:'0.00',dyRedPack:'0.07',dyMonthPay:'1000.00',
+  bankIdx:0,bankCardNo:'6222 **** **** 8888',bankType:'储蓄卡',bankBal:'268888.00',
+  btBank:0,btFrom:'张三',btFromCard:'6222 **** **** 8888',btTo:'李四',btToCard:'6228 **** **** 6666',btToBank:6,btAmount:'50000.00',btTime:'',btOrderId:'',
+  chatName:'小美',chatAvatarColor:'#fa6400',chatAvatarText:'美',chatAvatarImg:'',chatMyAvatarColor:'#07c160',chatMyAvatarText:'我',chatMyAvatarImg:'',
+  chatMsgs:[
+    {type:'time',text:'昨天 18:32'},
+    {type:'text',from:'other',text:'在吗？'},
+    {type:'text',from:'me',text:'在的，怎么了？'},
+    {type:'text',from:'other',text:'周末有空吗？一起吃个饭'},
+    {type:'text',from:'me',text:'好啊，周六中午怎么样？'},
+    {type:'time',text:'昨天 20:15'},
+    {type:'text',from:'other',text:'可以的，到时候联系'},
+    {type:'text',from:'me',text:'[OK]'},
+  ],
+};
+
+// ===== HELPERS =====
+function fmtMoney(str){
+  let v=String(str).replace(/[^\d.]/g,'');
+  let parts=v.split('.');
+  parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return parts.join('.');
+}
+function fmtInput(el){
+  let cursor=el.selectionStart;
+  let raw=el.value.replace(/,/g,'');
+  let oldLen=el.value.length;
+  el.value=fmtMoney(raw);
+  let newLen=el.value.length;
+  el.setSelectionRange(cursor+(newLen-oldLen),cursor+(newLen-oldLen));
+  return raw;
+}
+function genOrder(){return 'T'+Date.now().toString().slice(-12)+Math.random().toString(36).slice(2,6).toUpperCase();}
+function genTime(){let d=new Date();return d.getFullYear()+'-'+(''+(d.getMonth()+1)).padStart(2,'0')+'-'+(''+(d.getDate())).padStart(2,'0')+' '+(''+(d.getHours())).padStart(2,'0')+':'+(''+(d.getMinutes())).padStart(2,'0')+':'+(''+(d.getSeconds())).padStart(2,'0');}
+function lighten(hex,amt){hex=hex.replace('#','');if(hex.length===3)hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];let r=Math.min(255,parseInt(hex.substr(0,2),16)+amt);let g=Math.min(255,parseInt(hex.substr(2,2),16)+amt);let b=Math.min(255,parseInt(hex.substr(4,2),16)+amt);return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');}
+var _escDiv=document.createElement('div');
+function escapeHtml(s){_escDiv.textContent=s;return _escDiv.innerHTML;}
+function safeColor(c){return /^#[0-9a-fA-F]{3,6}$/.test(c)?c:'#333';}
+function safeNet(n){return['WiFi','5G','4G'].indexOf(n)>=0?n:'4G';}
+var _dbTimers={};
+function debounce(fn,key,ms){clearTimeout(_dbTimers[key]);_dbTimers[key]=setTimeout(fn,ms||80);}
+
+// ===== CUSTOM MODAL =====
+function showModal(msg,opts){
+  opts=opts||{};
+  var ov=document.getElementById('modalOverlay');
+  var title=opts.title||'提示';
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalMsg').textContent=msg;
+  var btnsEl=document.getElementById('modalBtns');
+  btnsEl.innerHTML='';
+  if(opts.onCancel){
+    var cb=document.createElement('button');cb.className='modal-cancel';cb.textContent=opts.cancelText||'取消';
+    cb.onclick=function(){ov.classList.remove('show');opts.onCancel();};btnsEl.appendChild(cb);
+  }
+  var ob=document.createElement('button');ob.className='modal-ok';ob.textContent=opts.okText||'确定';
+  ob.onclick=function(){ov.classList.remove('show');if(opts.onOk)opts.onOk();};btnsEl.appendChild(ob);
+  ov.classList.add('show');
+}
+
+// ===== LOCAL STORAGE =====
+var STORE_KEY='walletSimData';
+function saveState(){
+  try{localStorage.setItem(STORE_KEY,JSON.stringify(S));}catch(e){}
+}
+function loadState(){
+  try{var d=localStorage.getItem(STORE_KEY);return d?JSON.parse(d):null;}catch(e){return null;}
+}
+
+// ===== STATUS BAR =====
+function statusHTML(color){
+  color=safeColor(color);
+  let bars=[6,8,10,12].map(h=>'<i style="height:'+h+'px;background:'+color+'"></i>').join('');
+  var net=safeNet(S.net);
+  let netH=net==='WiFi'?'<svg width="16" height="13" viewBox="0 0 16 13" fill="'+color+'"><path d="M8 10.2a1.8 1.8 0 110 3.6 1.8 1.8 0 010-3.6zm-3.5-3a6.2 6.2 0 017 0l-1.2 1.5a4.2 4.2 0 00-4.6 0L4.5 7.2zM1.3 4.2a10 10 0 0113.4 0L13.5 5.7a8 8 0 00-11 0L1.3 4.2z"/></svg>':'<span style="font-size:13px;font-weight:700;color:'+color+'">'+escapeHtml(net)+'</span>';
+  let batC=S.bat<=20?'#ff3b30':color;
+  return '<div class="statusbar" style="color:'+color+'"><div class="time">'+escapeHtml(S.time)+'</div><div class="right">'+netH+'<div class="signal">'+bars+'</div><span style="font-size:12px;font-weight:600;color:'+batC+'">'+S.bat+'%</span><div class="batt" style="border-color:'+batC+'"><div class="batt-fill" style="width:'+Math.min(100,Math.max(0,S.bat))+'%;background:'+batC+'"></div></div></div></div>';
+}
+
+// ===== NAVIGATION =====
+let screenStack=['homeScreen'];
+function goTo(screenId){
+  let cur=document.getElementById(screenStack[screenStack.length-1]);
+  cur.classList.remove('active');cur.classList.add('prev');
+  let next=document.getElementById(screenId);
+  next.classList.add('active');next.classList.remove('prev');
+  screenStack.push(screenId);
+}
+function goBack(){
+  if(screenStack.length<=1)return;
+  let cur=document.getElementById(screenStack.pop());
+  cur.classList.remove('active');
+  let prev=document.getElementById(screenStack[screenStack.length-1]);
+  prev.classList.add('active');prev.classList.remove('prev');
+  setTimeout(function(){cur.scrollTop=0;},350);
+}
+
+function renderHome(){
+  document.getElementById('homeGrid').innerHTML=MODULES.map(function(m){
+    return '<div class="home-card" onclick="openModule(\''+m.id+'\')"><div class="icon" style="background:'+m.icon+'">'+m.emoji+'</div><div class="name">'+escapeHtml(m.name)+'</div><div class="desc">'+escapeHtml(m.desc)+'</div></div>';
+  }).join('');
+}
+
+function openModule(id){
+  var fn={'wx-balance':edWxBal,'wx-lqt':edWxLqt,'wx-transfer':edWxTransfer,'wx-receive':edWxReceive,'ali-balance':edAliBal,'ali-transfer':edAliTransfer,'dy-wallet':edDyWallet,'bank-card':edBankCard,'bank-transfer':edBankTransfer,'wx-chat':edWxChat}[id];
+  if(fn)fn();
+}
+
+function editorShell(title,formHTML,previewFn,previewId){
+  var html='<div style="background:#fff">'+statusHTML('#333')+'<div class="navbar" style="color:#333"><button class="back-btn" onclick="goBack()">&lsaquo;</button><span class="title">'+escapeHtml(title)+'</span></div></div><div class="form-section">'+formHTML+'</div><div style="padding:0 16px 8px"><div style="font-size:14px;font-weight:600;color:#333;margin-bottom:8px">预览效果</div></div><div class="preview-frame"><div class="preview-inner" id="'+previewId+'"></div></div><div class="export-bar"><button class="btn-primary" onclick="exportScreenshot(\''+previewId+'\')">保存截图</button><button class="btn-secondary" onclick="exportScreenshot(\''+previewId+'\',true)">仅导出预览</button></div>';
+  document.getElementById('editorContent').innerHTML=html;
+  document.getElementById('editorScreen').scrollTop=0;
+  goTo('editorScreen');
+  setTimeout(previewFn,50);
+}
+
+function bankSelect(fieldId,stateKey,onChange){
+  return '<div class="form-item"><label>选择银行</label><select id="'+fieldId+'" onchange="S.'+stateKey+'=+this.value;'+onChange+'">'+BANKS.map(function(b,i){return '<option value="'+i+'" '+(i===S[stateKey]?'selected':'')+'>'+escapeHtml(b.n)+'</option>';}).join('')+'</select></div>';
+}
+
+function debouncedRefresh(){debounce(function(){refreshPreview();},'rp',80);}
+function dr(fn,key){debounce(fn,key||'dr',80);}
+function commonSettings(){
+  return '<div class="form-card"><div class="form-item"><label>状态栏时间</label><input value="'+escapeHtml(S.time)+'" oninput="S.time=this.value;debouncedRefresh()"></div><div class="form-item"><label>电量</label><input type="number" value="'+S.bat+'" min="1" max="100" oninput="S.bat=Math.min(100,Math.max(0,+this.value));debouncedRefresh()"><span class="suffix">%</span></div><div class="form-item"><label>网络</label><select onchange="S.net=this.value;refreshPreview()"><option '+(S.net==='WiFi'?'selected':'')+'>WiFi</option><option '+(S.net==='5G'?'selected':'')+'>5G</option><option '+(S.net==='4G'?'selected':'')+'>4G</option></select></div></div>';
+}
+
+var refreshPreview=function(){};
+
+// ===== WX BALANCE - Real WeChat Style (白底 + 橙色图标 + 底部按钮) =====
+function edWxBal(){
+  var form=commonSettings()+'<div class="form-card"><div class="form-item"><label>零钱余额</label><input id="wxBalIn" value="'+fmtMoney(S.wxBal)+'" oninput="S.wxBal=fmtInput(this);dr(renderWxBal,\'wb\')"></div></div>';
+  refreshPreview=renderWxBal;
+  editorShell('微信零钱',form,renderWxBal,'prevWxBal');
+}
+function renderWxBal(){
+  var el=document.getElementById('prevWxBal');if(!el)return;
+  el.innerHTML='<div style="background:#f6f6f6;min-height:680px;display:flex;flex-direction:column">'+
+    statusHTML('#333')+
+    '<div class="navbar" style="color:#333"><button class="back-btn">&lsaquo;</button><span class="title">零钱</span><span class="right-btn">零钱明细</span></div>'+
+    '<div style="flex:1;display:flex;flex-direction:column;align-items:center;padding-top:48px">'+
+      '<div style="width:72px;height:72px;border-radius:50%;background:#f0a020;display:flex;align-items:center;justify-content:center;margin-bottom:16px">'+
+        '<svg width="36" height="36" viewBox="0 0 24 24" fill="#fff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.31-8.86c-1.77-.45-2.34-.94-2.34-1.67 0-.84.79-1.43 2.1-1.43 1.38 0 1.9.66 1.94 1.64h1.71c-.05-1.34-.87-2.57-2.49-2.97V5H11.5v1.69c-1.51.32-2.72 1.3-2.72 2.81 0 1.79 1.49 2.69 3.66 3.21 1.95.46 2.34 1.15 2.34 1.87 0 .53-.39 1.39-2.1 1.39-1.6 0-2.23-.72-2.32-1.64H8.65c.1 1.71 1.37 2.66 2.85 2.97V19h1.73v-1.67c1.52-.29 2.72-1.16 2.72-2.74 0-2.21-1.89-2.97-3.64-3.45z"/></svg>'+
+      '</div>'+
+      '<div style="font-size:14px;color:#888;margin-bottom:20px">我的零钱</div>'+
+      '<div style="font-size:52px;font-weight:300;font-family:DIN Alternate,Helvetica Neue,sans-serif;letter-spacing:-2px;color:#333;margin-bottom:20px">'+
+        '<span style="font-size:24px;font-weight:400;margin-right:2px">&yen;</span>'+fmtMoney(S.wxBal)+
+      '</div>'+
+      '<div style="font-size:14px;color:#07c160;margin-bottom:auto;padding-bottom:32px;cursor:pointer">转入零钱通，能赚又能花 &rsaquo;</div>'+
+    '</div>'+
+    '<div style="padding:0 24px 12px;display:flex;gap:12px">'+
+      '<div style="flex:1;padding:14px;border-radius:8px;background:#07c160;color:#fff;font-size:16px;font-weight:500;text-align:center">充值</div>'+
+      '<div style="flex:1;padding:14px;border-radius:8px;background:#f5f5f5;color:#333;font-size:16px;font-weight:500;text-align:center">提现</div>'+
+    '</div>'+
+    '<div style="text-align:center;padding:8px 0 4px"><span style="font-size:13px;color:#576b95;cursor:pointer">常见问题</span></div>'+
+    '<div style="text-align:center;padding:4px 0 12px;font-size:11px;color:#bbb">本服务由财付通提供</div>'+
+    '<div class="home-indicator"></div>'+
+  '</div>';
+}
+
+// ===== WX LQT - Real WeChat Style (金色渐变 + 钻石图标 + 白色卡片) =====
+function edWxLqt(){
+  var form=commonSettings()+'<div class="form-card"><div class="form-item"><label>总金额</label><input value="'+fmtMoney(S.wxLqt)+'" oninput="S.wxLqt=fmtInput(this);renderWxLqt()"></div><div class="form-item"><label>昨日收益</label><input value="'+S.wxLqtYtd+'" oninput="S.wxLqtYtd=this.value;renderWxLqt()"></div><div class="form-item"><label>累计收益</label><input value="'+S.wxLqtTotal+'" oninput="S.wxLqtTotal=this.value;renderWxLqt()"></div><div class="form-item"><label>七日年化%</label><input value="'+S.wxLqtRate+'" oninput="S.wxLqtRate=this.value;renderWxLqt()"><span class="suffix">%</span></div><div class="form-item"><label>基金名称</label><input value="'+escapeHtml(S.wxLqtFund)+'" oninput="S.wxLqtFund=this.value;renderWxLqt()"></div></div>';
+  refreshPreview=renderWxLqt;
+  editorShell('零钱通',form,renderWxLqt,'prevWxLqt');
+}
+function renderWxLqt(){
+  var el=document.getElementById('prevWxLqt');if(!el)return;
+  el.innerHTML='<div style="min-height:750px">'+
+    // 金色顶部区域
+    '<div style="background:linear-gradient(180deg,#eba517 0%,#e5960e 100%);padding-bottom:80px">'+
+      statusHTML('#fff')+
+      '<div class="navbar" style="color:#fff"><button class="back-btn">&lsaquo;</button><span class="title"></span><span class="right-btn">&#8943;</span></div>'+
+      // 钻石图标
+      '<div style="text-align:center;padding-top:16px">'+
+        '<svg width="48" height="48" viewBox="0 0 48 48" fill="none" style="margin:0 auto"><path d="M10 18L24 6l14 12-14 24L10 18z" stroke="#fff" stroke-width="2" fill="none"/><path d="M10 18h28" stroke="#fff" stroke-width="2"/><path d="M18 6l-8 12 14 24" stroke="#fff" stroke-width="1.5" fill="none"/><path d="M30 6l8 12-14 24" stroke="#fff" stroke-width="1.5" fill="none"/></svg>'+
+      '</div>'+
+      '<div style="text-align:center;color:#fff;font-size:18px;font-weight:600;margin:8px 0 10px">零钱通</div>'+
+      '<div style="text-align:center;color:rgba(255,255,255,.85);font-size:13px;display:flex;align-items:center;justify-content:center;gap:4px">'+
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>'+
+        '资金安全保障中 &rsaquo;'+
+      '</div>'+
+    '</div>'+
+    // 白色主卡片（上移覆盖金色区域）
+    '<div style="background:#fff;border-radius:16px;margin:-60px 14px 0;padding:24px 20px 20px;position:relative;z-index:2;box-shadow:0 2px 12px rgba(0,0,0,.06)">'+
+      '<div style="font-size:14px;color:#888;text-align:center;margin-bottom:8px">账户余额</div>'+
+      '<div style="font-size:42px;font-weight:300;text-align:center;font-family:DIN Alternate,Helvetica Neue,sans-serif;letter-spacing:-1px;color:#333;margin-bottom:4px">'+
+        '<span style="font-size:20px;font-weight:400;margin-right:2px">&yen;</span>'+fmtMoney(S.wxLqt)+
+      '</div>'+
+      '<div style="text-align:center;font-size:14px;color:#576b95;margin-bottom:20px;cursor:pointer">资金明细</div>'+
+      // 两列数据
+      '<div style="display:flex;border-top:1px solid #f0f0f0;padding-top:16px;margin-bottom:20px">'+
+        '<div style="flex:1;text-align:center;border-right:1px solid #f0f0f0">'+
+          '<div style="font-size:13px;color:#888;margin-bottom:8px">7日年化收益率 &rsaquo;</div>'+
+          '<div style="font-size:22px;font-weight:500;font-family:DIN Alternate,sans-serif;color:#333">'+escapeHtml(S.wxLqtRate)+'%</div>'+
+          '<div style="font-size:11px;color:#999;margin-top:6px;background:#f5f5f5;display:inline-block;padding:2px 8px;border-radius:10px">'+escapeHtml(S.wxLqtFund)+'</div>'+
+        '</div>'+
+        '<div style="flex:1;text-align:center">'+
+          '<div style="font-size:13px;color:#888;margin-bottom:8px">累计收益 &rsaquo;</div>'+
+          '<div style="font-size:22px;font-weight:500;font-family:DIN Alternate,sans-serif;color:#333">&yen;'+escapeHtml(S.wxLqtTotal)+'</div>'+
+          '<div style="font-size:11px;color:#999;margin-top:6px;background:#f5f5f5;display:inline-block;padding:2px 8px;border-radius:10px">昨日 &yen;'+escapeHtml(S.wxLqtYtd)+'</div>'+
+        '</div>'+
+      '</div>'+
+      // 转出/转入按钮
+      '<div style="display:flex;gap:12px;margin-bottom:12px">'+
+        '<div style="flex:1;padding:13px;border-radius:8px;background:#f5f5f5;color:#333;font-size:16px;font-weight:500;text-align:center">转出</div>'+
+        '<div style="flex:1;padding:13px;border-radius:8px;background:#eba517;color:#fff;font-size:16px;font-weight:500;text-align:center">转入</div>'+
+      '</div>'+
+      '<div style="text-align:center;font-size:13px;color:#888;display:flex;align-items:center;justify-content:center;gap:4px;padding:4px 0">'+
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>'+
+        '设置定时转入 &rsaquo;'+
+      '</div>'+
+    '</div>'+
+    // 更多产品区域
+    '<div style="padding:16px 14px 0">'+
+      '<div style="font-size:14px;color:#888;margin-bottom:10px">更多产品</div>'+
+      '<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:12px">'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
+          '<div style="display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600">'+
+            '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#1677ff,#4a9eff);display:flex;align-items:center;justify-content:center">'+
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="12" r="10"/></svg>'+
+            '</div>理财通'+
+          '</div>'+
+          '<span style="color:#ccc;font-size:18px">&rsaquo;</span>'+
+        '</div>'+
+        '<div style="border-top:1px solid #f5f5f5;padding-top:12px">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">'+
+            '<div><div style="font-size:14px;font-weight:500;color:#333">活期理财</div><div style="font-size:12px;color:#999;margin-top:2px">转出最快秒到账</div></div>'+
+            '<div style="text-align:right"><div style="font-size:18px;font-weight:600;color:#eba517;font-family:DIN Alternate,sans-serif">1.53%</div><div style="font-size:11px;color:#999;margin-top:2px">收益率</div></div>'+
+          '</div>'+
+          '<div style="border-top:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center;padding:8px 0;margin-top:4px">'+
+            '<div><div style="font-size:14px;font-weight:500;color:#333">定期理财</div><div style="font-size:12px;color:#999;margin-top:2px">追求更高收益</div></div>'+
+            '<div style="text-align:right"><div style="font-size:18px;font-weight:600;color:#eba517;font-family:DIN Alternate,sans-serif">2.68%</div><div style="font-size:11px;color:#999;margin-top:2px">最高收益率</div></div>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+    // 底部
+    '<div style="text-align:center;padding:20px 0 4px">'+
+      '<span style="font-size:13px;color:#576b95;margin:0 12px;cursor:pointer">了解零钱通 &rsaquo;</span>'+
+      '<span style="font-size:13px;color:#576b95;margin:0 12px;cursor:pointer">常见问题 &rsaquo;</span>'+
+    '</div>'+
+    '<div style="text-align:center;font-size:11px;color:#bbb;padding:6px 16px 12px">零钱通对应货币基金销售服务由腾安基金销售公司提供</div>'+
+    '<div class="home-indicator"></div>'+
+  '</div>';
+}
+
+// ===== WX TRANSFER =====
+function edWxTransfer(){
+  if(!S.wxTrTime)S.wxTrTime=genTime();
+  if(!S.wxTrOrderId)S.wxTrOrderId=genOrder();
+  var form=commonSettings()+'<div class="form-card"><div class="form-item"><label>收款人姓名</label><input value="'+escapeHtml(S.wxTrName)+'" oninput="S.wxTrName=this.value;renderWxTr()"></div><div class="form-item"><label>收款人微信</label><input value="'+escapeHtml(S.wxTrId)+'" oninput="S.wxTrId=this.value;renderWxTr()"></div><div class="form-item"><label>转账金额</label><input value="'+fmtMoney(S.wxTrAmount)+'" oninput="S.wxTrAmount=fmtInput(this);renderWxTr()"></div><div class="form-item"><label>转账备注</label><input value="'+escapeHtml(S.wxTrNote)+'" oninput="S.wxTrNote=this.value;renderWxTr()"></div><div class="form-item"><label>付款方式</label><select onchange="S.wxTrMethod=this.value;renderWxTr()"><option '+(S.wxTrMethod==='零钱'?'selected':'')+'>零钱</option><option '+(S.wxTrMethod==='零钱通'?'selected':'')+'>零钱通</option>'+BANKS.slice(0,20).map(function(b){return '<option '+(S.wxTrMethod===b.s?'selected':'')+'>'+escapeHtml(b.s)+'</option>';}).join('')+'</select></div></div><div class="form-card"><div class="form-item"><label>交易时间</label><input value="'+escapeHtml(S.wxTrTime)+'" oninput="S.wxTrTime=this.value;renderWxTr()"></div><div class="form-item"><label>订单号</label><input value="'+escapeHtml(S.wxTrOrderId)+'" oninput="S.wxTrOrderId=this.value;renderWxTr()" style="font-size:12px"></div></div>';
+  refreshPreview=renderWxTr;
+  editorShell('微信转账',form,renderWxTr,'prevWxTr');
+}
+function renderWxTr(){
+  var el=document.getElementById('prevWxTr');if(!el)return;
+  el.innerHTML='<div class="wx-success-page">'+statusHTML('#333')+'<div class="navbar" style="color:#333"><button class="back-btn">&lsaquo;</button><span class="title">转账详情</span></div><div class="wx-success-top"><div class="wx-success-icon"><svg viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5L4 14.2l5 5 12-12-1.5-1.5z"/></svg></div><div class="wx-success-title">转账成功</div><div class="wx-success-amount"><span class="sym">&yen;</span>'+fmtMoney(S.wxTrAmount)+'</div></div><div class="wx-success-detail"><div class="row"><span class="k">收款方</span><span>'+escapeHtml(S.wxTrName)+'</span></div><div class="row"><span class="k">转账时间</span><span>'+escapeHtml(S.wxTrTime)+'</span></div><div class="row"><span class="k">转账备注</span><span>'+escapeHtml(S.wxTrNote||'无')+'</span></div><div class="row"><span class="k">付款方式</span><span>'+escapeHtml(S.wxTrMethod)+'</span></div><div class="row"><span class="k">交易单号</span><span style="font-size:12px;word-break:break-all">'+escapeHtml(S.wxTrOrderId)+'</span></div></div><div class="home-indicator" style="margin-top:40px"></div></div>';
+}
+
+// ===== WX RECEIVE =====
+function edWxReceive(){
+  if(!S.wxRcTime)S.wxRcTime=genTime();
+  if(!S.wxRcOrderId)S.wxRcOrderId=genOrder();
+  var form=commonSettings()+'<div class="form-card"><div class="form-item"><label>付款人姓名</label><input value="'+escapeHtml(S.wxRcFrom)+'" oninput="S.wxRcFrom=this.value;renderWxRc()"></div><div class="form-item"><label>收款金额</label><input value="'+fmtMoney(S.wxRcAmount)+'" oninput="S.wxRcAmount=fmtInput(this);renderWxRc()"></div></div><div class="form-card"><div class="form-item"><label>收款时间</label><input value="'+escapeHtml(S.wxRcTime)+'" oninput="S.wxRcTime=this.value;renderWxRc()"></div><div class="form-item"><label>订单号</label><input value="'+escapeHtml(S.wxRcOrderId)+'" oninput="S.wxRcOrderId=this.value;renderWxRc()" style="font-size:12px"></div></div>';
+  refreshPreview=renderWxRc;
+  editorShell('微信收款',form,renderWxRc,'prevWxRc');
+}
+function renderWxRc(){
+  var el=document.getElementById('prevWxRc');if(!el)return;
+  el.innerHTML='<div class="wx-success-page">'+statusHTML('#333')+'<div class="navbar" style="color:#333"><button class="back-btn">&lsaquo;</button><span class="title">收款详情</span></div><div class="wx-success-top"><div class="wx-success-icon"><svg viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5L4 14.2l5 5 12-12-1.5-1.5z"/></svg></div><div class="wx-success-title">已收款</div><div class="wx-success-amount"><span class="sym">&yen;</span>'+fmtMoney(S.wxRcAmount)+'</div></div><div class="wx-success-detail"><div class="row"><span class="k">付款方</span><span>'+escapeHtml(S.wxRcFrom)+'</span></div><div class="row"><span class="k">收款时间</span><span>'+escapeHtml(S.wxRcTime)+'</span></div><div class="row"><span class="k">收款方式</span><span>零钱</span></div><div class="row"><span class="k">交易单号</span><span style="font-size:12px;word-break:break-all">'+escapeHtml(S.wxRcOrderId)+'</span></div></div><div class="home-indicator" style="margin-top:40px"></div></div>';
+}
+
+// ===== ALIPAY BALANCE =====
+function edAliBal(){
+  var form=commonSettings()+'<div class="form-card"><div class="form-item"><label>账户余额</label><input value="'+fmtMoney(S.aliBal)+'" oninput="S.aliBal=fmtInput(this);renderAliBal()"></div><div class="form-item"><label>余额宝</label><input value="'+fmtMoney(S.aliYuebao)+'" oninput="S.aliYuebao=fmtInput(this);renderAliBal()"></div><div class="form-item"><label>花呗额度</label><input value="'+fmtMoney(S.aliHuabei)+'" oninput="S.aliHuabei=fmtInput(this);renderAliBal()"></div></div>';
+  refreshPreview=renderAliBal;
+  editorShell('支付宝余额',form,renderAliBal,'prevAliBal');
+}
+function renderAliBal(){
+  var el=document.getElementById('prevAliBal');if(!el)return;
+  el.innerHTML='<div class="ali-page">'+statusHTML('#fff')+'<div class="navbar" style="color:#fff"><button class="back-btn">&lsaquo;</button><span class="title">我的</span></div><div class="ali-balance-area"><div class="label">账户余额(元)</div><div class="amount"><span class="sym">&yen;</span>'+fmtMoney(S.aliBal)+'</div></div><div class="ali-btn-row"><div class="ali-btn-item"><div class="circle"><svg width="22" height="22" fill="#fff" viewBox="0 0 24 24"><path d="M12 16l-6-6h12z"/></svg></div><span>充值</span></div><div class="ali-btn-item"><div class="circle"><svg width="22" height="22" fill="#fff" viewBox="0 0 24 24"><path d="M12 8l6 6H6z"/></svg></div><span>提现</span></div><div class="ali-btn-item"><div class="circle"><svg width="22" height="22" fill="#fff" viewBox="0 0 24 24"><path d="M3 3h18v18H3z" fill="none" stroke="#fff" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="#fff" stroke-width="2"/></svg></div><span>转账</span></div></div><div class="ali-card"><div class="ali-card-row"><div class="ico" style="background:#1890ff">&#128176;</div><div class="info"><div class="t">余额宝</div><div class="d">昨日收益 +16.88</div></div><span class="val">&yen;'+fmtMoney(S.aliYuebao)+'</span><span class="arrow">&rsaquo;</span></div><div class="ali-card-row"><div class="ico" style="background:#f5222d">&#128293;</div><div class="info"><div class="t">花呗</div><div class="d">本月待还</div></div><span class="val">&yen;'+fmtMoney(S.aliHuabei)+'</span><span class="arrow">&rsaquo;</span></div><div class="ali-card-row"><div class="ico" style="background:#722ed1">&#128200;</div><div class="info"><div class="t">借呗</div><div class="d">额度充足</div></div><span class="val">查看</span><span class="arrow">&rsaquo;</span></div><div class="ali-card-row"><div class="ico" style="background:#faad14">&#127974;</div><div class="info"><div class="t">银行卡</div><div class="d">管理银行卡</div></div><span class="arrow">&rsaquo;</span></div></div><div class="home-indicator"></div></div>';
+}
+
+// ===== ALIPAY TRANSFER =====
+function edAliTransfer(){
+  if(!S.aliTrTime)S.aliTrTime=genTime();
+  if(!S.aliTrOrderId)S.aliTrOrderId=genOrder();
+  var form=commonSettings()+'<div class="form-card"><div class="form-item"><label>收款人姓名</label><input value="'+escapeHtml(S.aliTrName)+'" oninput="S.aliTrName=this.value;renderAliTr()"></div><div class="form-item"><label>收款人账号</label><input value="'+escapeHtml(S.aliTrAccount)+'" oninput="S.aliTrAccount=this.value;renderAliTr()"></div><div class="form-item"><label>转账金额</label><input value="'+fmtMoney(S.aliTrAmount)+'" oninput="S.aliTrAmount=fmtInput(this);renderAliTr()"></div></div><div class="form-card"><div class="form-item"><label>交易时间</label><input value="'+escapeHtml(S.aliTrTime)+'" oninput="S.aliTrTime=this.value;renderAliTr()"></div><div class="form-item"><label>订单号</label><input value="'+escapeHtml(S.aliTrOrderId)+'" oninput="S.aliTrOrderId=this.value;renderAliTr()" style="font-size:12px"></div></div>';
+  refreshPreview=renderAliTr;
+  editorShell('支付宝转账',form,renderAliTr,'prevAliTr');
+}
+function renderAliTr(){
+  var el=document.getElementById('prevAliTr');if(!el)return;
+  el.innerHTML='<div style="background:#f5f5f5;min-height:600px">'+statusHTML('#333')+'<div class="navbar" style="color:#333"><button class="back-btn">&lsaquo;</button><span class="title">转账详情</span></div><div style="background:#fff;text-align:center;padding:40px 20px 32px"><div style="width:64px;height:64px;border-radius:50%;background:#1677ff;margin:0 auto 16px;display:flex;align-items:center;justify-content:center"><svg width="32" height="32" fill="#fff" viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5L4 14.2l5 5 12-12-1.5-1.5z"/></svg></div><div style="font-size:18px;font-weight:600;margin-bottom:8px">转账成功</div><div style="font-size:40px;font-weight:200;font-family:DIN Alternate,sans-serif;letter-spacing:-1px"><span style="font-size:20px;font-weight:400;margin-right:2px">&yen;</span>'+fmtMoney(S.aliTrAmount)+'</div></div><div style="background:#fff;margin-top:10px"><div style="display:flex;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #f5f5f5;font-size:14px"><span style="color:#999">收款方</span><span>'+escapeHtml(S.aliTrName)+'('+escapeHtml(S.aliTrAccount)+')</span></div><div style="display:flex;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #f5f5f5;font-size:14px"><span style="color:#999">转账时间</span><span>'+escapeHtml(S.aliTrTime)+'</span></div><div style="display:flex;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #f5f5f5;font-size:14px"><span style="color:#999">付款方式</span><span>余额</span></div><div style="display:flex;justify-content:space-between;padding:14px 20px;font-size:14px"><span style="color:#999">交易单号</span><span style="font-size:12px;word-break:break-all">'+escapeHtml(S.aliTrOrderId)+'</span></div></div><div class="home-indicator" style="margin-top:40px"></div></div>';
+}
+
+// ===== DOUYIN WALLET (Real Style - Light Theme + Blue Card) =====
+function edDyWallet(){
+  var form=commonSettings()+'<div class="form-card"><div class="form-item"><label>总资产</label><input value="'+fmtMoney(S.dyBal)+'" oninput="S.dyBal=fmtInput(this);dr(renderDy,\'dy\')"></div><div class="form-item"><label>钻石</label><input value="'+escapeHtml(String(S.dyDiamond))+'" oninput="S.dyDiamond=this.value;dr(renderDy,\'dy\')"></div><div class="form-item"><label>金币</label><input value="'+escapeHtml(String(S.dyGold))+'" oninput="S.dyGold=this.value;dr(renderDy,\'dy\')"></div><div class="form-item"><label>券包</label><input value="'+escapeHtml(String(S.dyCoupon))+'" oninput="S.dyCoupon=this.value;dr(renderDy,\'dy\')"></div><div class="form-item"><label>银行卡</label><input value="'+escapeHtml(String(S.dyBankCards))+'" oninput="S.dyBankCards=this.value;dr(renderDy,\'dy\')"></div></div><div class="form-card"><div class="form-item"><label>抖音零钱</label><input value="'+S.dyZeroMoney+'" oninput="S.dyZeroMoney=this.value;dr(renderDy,\'dy\')"></div><div class="form-item"><label>我的收入</label><input value="'+S.dyIncome+'" oninput="S.dyIncome=this.value;dr(renderDy,\'dy\')"></div><div class="form-item"><label>活动红包</label><input value="'+S.dyRedPack+'" oninput="S.dyRedPack=this.value;dr(renderDy,\'dy\')"></div><div class="form-item"><label>抖音月付额度</label><input value="'+fmtMoney(S.dyMonthPay)+'" oninput="S.dyMonthPay=fmtInput(this);dr(renderDy,\'dy\')"></div></div>';
+  refreshPreview=renderDy;
+  editorShell('抖音钱包',form,renderDy,'prevDy');
+}
+function renderDy(){
+  var el=document.getElementById('prevDy');if(!el)return;
+  el.innerHTML='<div class="dy-page">'+statusHTML('#333')+
+    // 顶部导航
+    '<div style="display:flex;align-items:center;padding:6px 16px 10px">'+
+      '<button style="font-size:28px;font-weight:300;color:#333;width:44px;height:44px;display:flex;align-items:center;justify-content:center">&lsaquo;</button>'+
+      '<span style="font-size:17px;font-weight:600;color:#333">**成的钱包</span>'+
+      '<span style="font-size:11px;color:#999;background:#f0f0f0;padding:2px 8px;border-radius:12px;margin-left:6px">请补全证件照片 &rsaquo;</span>'+
+      '<span style="margin-left:auto;display:flex;gap:14px;color:#333">'+
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.8"><path d="M12 2a3 3 0 00-3 3v4a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v1a7 7 0 01-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/></svg>'+
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>'+
+      '</span>'+
+    '</div>'+
+    // 蓝色渐变卡片
+    '<div class="dy-blue-card">'+
+      '<div class="dy-total-label">总资产(元) <svg width="14" height="14" viewBox="0 0 24 24" fill="rgba(255,255,255,.7)"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg> <span class="safe-tag">&#128737; 安全保障中</span></div>'+
+      '<div class="dy-total-amount">'+fmtMoney(S.dyBal)+'</div>'+
+      '<div class="dy-stats">'+
+        '<div class="dy-stat"><div class="v">'+escapeHtml(String(S.dyDiamond))+'</div><div class="l">钻石</div></div>'+
+        '<div class="dy-stat"><div class="v">'+escapeHtml(String(S.dyGold))+'</div><div class="l">金币</div></div>'+
+        '<div class="dy-stat"><div class="v">'+escapeHtml(String(S.dyCoupon))+'</div><div class="l">券包</div></div>'+
+        '<div class="dy-stat"><div class="v">'+escapeHtml(String(S.dyBankCards))+'</div><div class="l">银行卡</div></div>'+
+      '</div>'+
+    '</div>'+
+    // 账单行
+    '<div class="dy-bill-row"><span class="bill-label">账单</span>生活服务退款成功&yen;79.00 <span style="color:#bbb;margin-left:4px">1月前</span><span class="bill-all">全部 &rsaquo;</span></div>'+
+    // 服务网格
+    '<div class="dy-service-grid">'+
+      '<div class="dy-service-item"><div class="sico" style="background:#e8f4ff"><svg width="22" height="22" viewBox="0 0 24 24" fill="#4a9eff"><circle cx="12" cy="12" r="10"/></svg></div><div class="stxt">放心借</div></div>'+
+      '<div class="dy-service-item"><div class="sico" style="background:#fff3e0"><svg width="22" height="22" viewBox="0 0 24 24" fill="#ff9500"><circle cx="12" cy="12" r="10"/></svg></div><div class="stxt">抖音月付</div></div>'+
+      '<div class="dy-service-item"><div class="sico" style="background:#f0f0f0"><svg width="22" height="22" viewBox="0 0 24 24" fill="#333"><circle cx="12" cy="12" r="10"/></svg></div><div class="stxt">抖音支付</div></div>'+
+      '<div class="dy-service-item"><div class="sico" style="background:#fff3e0"><svg width="22" height="22" viewBox="0 0 24 24" fill="#ff9500"><path d="M12 2L3 7v10l9 5 9-5V7l-9-5z"/></svg></div><div class="stxt">我的保障</div></div>'+
+      '<div class="dy-service-item"><div class="sico" style="background:#e8f4ff"><svg width="22" height="22" viewBox="0 0 24 24" fill="#4a9eff"><rect x="5" y="2" width="14" height="20" rx="3"/></svg></div><div class="stxt">手机充值</div></div>'+
+      '<div class="dy-service-item"><div class="sico" style="background:#e8f4ff"><svg width="22" height="22" viewBox="0 0 24 24" fill="#4a9eff"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20" stroke="#fff" stroke-width="2"/></svg></div><div class="stxt">信用卡还款</div></div>'+
+      '<div class="dy-service-item"><div class="sico" style="background:#e6ffe6"><svg width="22" height="22" viewBox="0 0 24 24" fill="#34c759"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div><div class="stxt">生活缴费</div></div>'+
+      '<div class="dy-service-item"><div class="sico" style="background:#ffe8e8"><svg width="22" height="22" viewBox="0 0 24 24" fill="#ff4d6a"><path d="M3 3l18 18M3 21L21 3" stroke="#ff4d6a" stroke-width="2" fill="none"/><circle cx="12" cy="12" r="8" fill="none" stroke="#ff4d6a" stroke-width="1.5"/></svg></div><div class="stxt">股票行情</div></div>'+
+      '<div class="dy-service-item"><div class="sico" style="background:#e8f4ff"><svg width="22" height="22" viewBox="0 0 24 24" fill="#4a9eff"><rect x="3" y="8" width="18" height="10" rx="2"/><circle cx="12" cy="6" r="3"/></svg></div><div class="stxt">车主服务</div></div>'+
+      '<div class="dy-service-item"><div class="sico" style="background:#ffe8f0"><svg width="22" height="22" viewBox="0 0 24 24" fill="#ff6b9d"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></div><div class="stxt">粉丝团</div></div>'+
+      '<div class="dy-service-item"><div class="sico" style="background:#e6ffe6"><svg width="22" height="22" viewBox="0 0 24 24" fill="#34c759"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg></div><div class="stxt">出行</div></div>'+
+      '<div class="dy-service-item"><div class="sico" style="background:#e8f4ff"><svg width="22" height="22" viewBox="0 0 24 24" fill="#4a9eff"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div><div class="stxt">更多服务</div></div>'+
+    '</div>'+
+    // 资产明细卡
+    '<div class="dy-asset-card">'+
+      '<div class="dy-asset-row">'+
+        '<div class="aico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>'+
+        '<div class="ainfo"><div class="at">抖音零钱 <span class="atag">保障中</span></div><div class="ad">随取随用，即时到账</div></div>'+
+        '<span class="aval">'+escapeHtml(S.dyZeroMoney)+'</span><span class="aarrow">&rsaquo;</span>'+
+      '</div>'+
+      '<div class="dy-asset-row">'+
+        '<div class="aico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div>'+
+        '<div class="ainfo"><div class="at">我的收入</div><div class="ad">直播/创作/电商/团购收入，随时可提现</div></div>'+
+        '<span class="aval">'+escapeHtml(S.dyIncome)+'</span><span class="aarrow">&rsaquo;</span>'+
+      '</div>'+
+      '<div class="dy-asset-row">'+
+        '<div class="aico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg></div>'+
+        '<div class="ainfo"><div class="at">活动红包 '+(parseFloat(S.dyRedPack)>0?'<span class="atag-red">'+escapeHtml(S.dyRedPack)+'元红包即将过期</span>':'')+'</div><div class="ad">活动发放权益，随时可提现</div></div>'+
+        '<span class="aval">'+escapeHtml(S.dyRedPack)+'</span><span class="aarrow">&rsaquo;</span>'+
+      '</div>'+
+    '</div>'+
+    '<div class="home-indicator"></div>'+
+  '</div>';
+}
+
+// ===== BANK CARD (Redesigned - Real Bank App Style) =====
+function edBankCard(){
+  var form=commonSettings()+'<div class="form-card">'+bankSelect('bankSel','bankIdx','renderBankCard()')+'<div class="form-item"><label>卡号</label><input value="'+escapeHtml(S.bankCardNo)+'" oninput="S.bankCardNo=this.value;renderBankCard()"></div><div class="form-item"><label>卡类型</label><select onchange="S.bankType=this.value;renderBankCard()"><option '+(S.bankType==='储蓄卡'?'selected':'')+'>储蓄卡</option><option '+(S.bankType==='信用卡'?'selected':'')+'>信用卡</option></select></div><div class="form-item"><label>账户余额</label><input value="'+fmtMoney(S.bankBal)+'" oninput="S.bankBal=fmtInput(this);renderBankCard()"></div></div>';
+  refreshPreview=renderBankCard;
+  editorShell('银行卡余额',form,renderBankCard,'prevBank');
+}
+function renderBankCard(){
+  var b=BANKS[S.bankIdx];if(!b)return;
+  var el=document.getElementById('prevBank');if(!el)return;
+  var bc=safeColor(b.c);
+  // 真实银行APP风格：顶部深色导航+卡片+交易记录
+  el.innerHTML='<div style="background:#f5f5f5;min-height:680px">'+
+    '<div style="background:'+bc+'">'+statusHTML('#fff')+
+    '<div class="navbar" style="color:#fff"><button class="back-btn">&lsaquo;</button><span class="title">我的账户</span><span class="right-btn">&#8943;</span></div>'+
+    '</div>'+
+    // 账户卡片（悬浮卡片风格）
+    '<div style="margin:-4px 16px 16px;background:linear-gradient(135deg,'+bc+','+lighten(bc,35)+');border-radius:16px;padding:20px 20px 24px;color:#fff;position:relative;overflow:hidden">'+
+      '<div style="position:absolute;top:-40px;right:-20px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.06)"></div>'+
+      '<div style="position:absolute;bottom:-50px;left:-20px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.04)"></div>'+
+      '<div style="display:flex;align-items:center;gap:10px;position:relative;z-index:1">'+
+        '<div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700">'+escapeHtml(b.s[0])+'</div>'+
+        '<div><div style="font-size:16px;font-weight:600">'+escapeHtml(b.n)+'</div><div style="font-size:12px;opacity:.7;margin-top:2px">'+escapeHtml(S.bankType)+' | '+escapeHtml(S.bankCardNo)+'</div></div>'+
+      '</div>'+
+      '<div style="margin-top:24px;position:relative;z-index:1">'+
+        '<div style="font-size:12px;opacity:.7">可用余额(元)</div>'+
+        '<div style="font-size:36px;font-weight:300;margin-top:6px;font-family:DIN Alternate,Helvetica Neue,sans-serif;letter-spacing:-1px">&yen; '+fmtMoney(S.bankBal)+'</div>'+
+      '</div>'+
+    '</div>'+
+    // 快捷操作
+    '<div style="background:#fff;border-radius:12px;margin:0 16px 12px;padding:16px 0;display:flex">'+
+      '<div style="flex:1;text-align:center"><div style="width:40px;height:40px;border-radius:50%;background:'+bc+'15;display:flex;align-items:center;justify-content:center;margin:0 auto 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="'+bc+'"><path d="M2 20h20V4H2v16zm2-2V6h16v12H4z"/><path d="M8 12h8v2H8z"/></svg></div><div style="font-size:12px;color:#666">转账</div></div>'+
+      '<div style="flex:1;text-align:center"><div style="width:40px;height:40px;border-radius:50%;background:'+bc+'15;display:flex;align-items:center;justify-content:center;margin:0 auto 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="'+bc+'"><path d="M19 14V6c0-1.1-.9-2-2-2H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zm-2 0H3V6h14v8zm-7-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></div><div style="font-size:12px;color:#666">收付款</div></div>'+
+      '<div style="flex:1;text-align:center"><div style="width:40px;height:40px;border-radius:50%;background:'+bc+'15;display:flex;align-items:center;justify-content:center;margin:0 auto 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="'+bc+'"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg></div><div style="font-size:12px;color:#666">明细</div></div>'+
+      '<div style="flex:1;text-align:center"><div style="width:40px;height:40px;border-radius:50%;background:'+bc+'15;display:flex;align-items:center;justify-content:center;margin:0 auto 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="'+bc+'"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div><div style="font-size:12px;color:#666">理财</div></div>'+
+    '</div>'+
+    // 交易记录
+    (function(){var td=genTime().split(' ')[0];return '<div style="background:#fff;border-radius:12px;margin:0 16px 16px;padding:16px 20px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div style="font-size:15px;font-weight:600">最近交易</div><div style="font-size:13px;color:#999">查看全部 &rsaquo;</div></div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f8f8f8"><div><div style="font-size:14px">工资收入</div><div style="font-size:12px;color:#999;margin-top:2px">'+escapeHtml(td)+'</div></div><div style="font-size:15px;font-weight:500;color:#07c160;font-family:DIN Alternate,sans-serif">+18,000.00</div></div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f8f8f8"><div><div style="font-size:14px">房租支出</div><div style="font-size:12px;color:#999;margin-top:2px">'+escapeHtml(td)+'</div></div><div style="font-size:15px;font-weight:500;font-family:DIN Alternate,sans-serif">-3,500.00</div></div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0"><div><div style="font-size:14px">转账收入</div><div style="font-size:12px;color:#999;margin-top:2px">'+escapeHtml(td)+'</div></div><div style="font-size:15px;font-weight:500;color:#07c160;font-family:DIN Alternate,sans-serif">+5,000.00</div></div>';})()+
+    '</div>'+
+    '<div class="home-indicator"></div>'+
+  '</div>';
+}
+
+// ===== BANK TRANSFER =====
+function edBankTransfer(){
+  if(!S.btTime)S.btTime=genTime();
+  if(!S.btOrderId)S.btOrderId=genOrder();
+  var form=commonSettings()+'<div class="form-card">'+bankSelect('btBankSel','btBank','renderBankTr()')+'<div class="form-item"><label>付款人姓名</label><input value="'+escapeHtml(S.btFrom)+'" oninput="S.btFrom=this.value;renderBankTr()"></div><div class="form-item"><label>付款卡号</label><input value="'+escapeHtml(S.btFromCard)+'" oninput="S.btFromCard=this.value;renderBankTr()"></div></div><div class="form-card"><div class="form-item"><label>收款人姓名</label><input value="'+escapeHtml(S.btTo)+'" oninput="S.btTo=this.value;renderBankTr()"></div><div class="form-item"><label>收款卡号</label><input value="'+escapeHtml(S.btToCard)+'" oninput="S.btToCard=this.value;renderBankTr()"></div>'+bankSelect('btToBankSel','btToBank','renderBankTr()')+'</div><div class="form-card"><div class="form-item"><label>转账金额</label><input value="'+fmtMoney(S.btAmount)+'" oninput="S.btAmount=fmtInput(this);renderBankTr()"></div><div class="form-item"><label>交易时间</label><input value="'+escapeHtml(S.btTime)+'" oninput="S.btTime=this.value;renderBankTr()"></div><div class="form-item"><label>订单号</label><input value="'+escapeHtml(S.btOrderId)+'" oninput="S.btOrderId=this.value;renderBankTr()" style="font-size:12px"></div></div>';
+  refreshPreview=renderBankTr;
+  editorShell('银行转账',form,renderBankTr,'prevBankTr');
+}
+function renderBankTr(){
+  var b=BANKS[S.btBank],tb=BANKS[S.btToBank];
+  var el=document.getElementById('prevBankTr');if(!el)return;
+  var bc=safeColor(b.c);
+  el.innerHTML='<div style="background:#f5f5f5;min-height:680px"><div style="background:'+bc+'">'+statusHTML('#fff')+'<div class="navbar" style="color:#fff"><button class="back-btn">&lsaquo;</button><span class="title">转账结果</span></div></div><div style="background:#fff;text-align:center;padding:40px 20px 32px;margin:0 0 10px"><div style="width:64px;height:64px;border-radius:50%;background:'+bc+';margin:0 auto 16px;display:flex;align-items:center;justify-content:center"><svg width="32" height="32" fill="#fff" viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5L4 14.2l5 5 12-12-1.5-1.5z"/></svg></div><div style="font-size:18px;font-weight:600;margin-bottom:8px">转账成功</div><div style="font-size:40px;font-weight:200;font-family:DIN Alternate,sans-serif;letter-spacing:-1px"><span style="font-size:20px;font-weight:400;margin-right:2px">&yen;</span>'+fmtMoney(S.btAmount)+'</div></div><div class="bank-detail-card"><div class="bank-detail-row"><span class="k">付款人</span><span>'+escapeHtml(S.btFrom)+'</span></div><div class="bank-detail-row"><span class="k">付款账户</span><span>'+escapeHtml(S.btFromCard)+'</span></div><div class="bank-detail-row"><span class="k">付款银行</span><span>'+escapeHtml(b.s)+'</span></div><div class="bank-detail-row"><span class="k">收款人</span><span>'+escapeHtml(S.btTo)+'</span></div><div class="bank-detail-row"><span class="k">收款账户</span><span>'+escapeHtml(S.btToCard)+'</span></div><div class="bank-detail-row"><span class="k">收款银行</span><span>'+escapeHtml(tb.s)+'</span></div><div class="bank-detail-row"><span class="k">交易时间</span><span>'+escapeHtml(S.btTime)+'</span></div><div class="bank-detail-row"><span class="k">交易单号</span><span style="font-size:12px;word-break:break-all">'+escapeHtml(S.btOrderId)+'</span></div></div><div class="home-indicator"></div></div>';
+}
+
+// ===== WX CHAT =====
+function edWxChat(){
+  refreshPreview=renderWxChat;
+  var html='<div style="background:#fff">'+statusHTML('#333')+'<div class="navbar" style="color:#333"><button class="back-btn" onclick="goBack()">&lsaquo;</button><span class="title">微信聊天</span></div></div><div class="form-section">'+commonSettings()+
+    '<div class="form-card"><div class="form-item"><label>对方昵称</label><input id="chatNameIn" value="'+escapeHtml(S.chatName)+'" oninput="S.chatName=this.value;renderWxChat()"></div>'+
+    '<div class="form-item"><label>对方头像</label><div style="display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end">'+(S.chatAvatarImg?'<img src="'+S.chatAvatarImg+'" style="width:32px;height:32px;border-radius:6px;object-fit:cover">':'<span style="width:32px;height:32px;border-radius:6px;background:'+S.chatAvatarColor+';color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:600">'+escapeHtml(S.chatAvatarText)+'</span>')+'<label style="font-size:12px;color:#1677ff;cursor:pointer;width:auto">上传<input type="file" accept="image/*" onchange="uploadAvatar(this,false)" style="display:none"></label><span style="font-size:12px;color:#999;cursor:pointer" onclick="S.chatAvatarImg=\'\';edWxChat()">重置</span></div></div>'+
+    '<div class="form-item" id="avatarFallbackOther"'+(S.chatAvatarImg?' style="display:none"':'')+'><label>头像文字/色</label><div style="display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end"><input value="'+escapeHtml(S.chatAvatarText)+'" maxlength="1" oninput="S.chatAvatarText=this.value;renderWxChat()" style="width:32px;text-align:center;border:1px solid #e8e8e8;border-radius:6px;padding:4px"><input type="color" value="'+S.chatAvatarColor+'" oninput="S.chatAvatarColor=this.value;renderWxChat()" style="width:32px;height:32px;padding:0;border:none"></div></div>'+
+    '<div class="form-item"><label>我的头像</label><div style="display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end">'+(S.chatMyAvatarImg?'<img src="'+S.chatMyAvatarImg+'" style="width:32px;height:32px;border-radius:6px;object-fit:cover">':'<span style="width:32px;height:32px;border-radius:6px;background:'+S.chatMyAvatarColor+';color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:600">'+escapeHtml(S.chatMyAvatarText)+'</span>')+'<label style="font-size:12px;color:#1677ff;cursor:pointer;width:auto">上传<input type="file" accept="image/*" onchange="uploadAvatar(this,true)" style="display:none"></label><span style="font-size:12px;color:#999;cursor:pointer" onclick="S.chatMyAvatarImg=\'\';edWxChat()">重置</span></div></div>'+
+    '<div class="form-item" id="avatarFallbackMe"'+(S.chatMyAvatarImg?' style="display:none"':'')+'><label>头像文字/色</label><div style="display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end"><input value="'+escapeHtml(S.chatMyAvatarText)+'" maxlength="1" oninput="S.chatMyAvatarText=this.value;renderWxChat()" style="width:32px;text-align:center;border:1px solid #e8e8e8;border-radius:6px;padding:4px"><input type="color" value="'+S.chatMyAvatarColor+'" oninput="S.chatMyAvatarColor=this.value;renderWxChat()" style="width:32px;height:32px;padding:0;border:none"></div></div></div>'+
+    '<div style="font-size:14px;font-weight:600;color:#333;margin-bottom:8px" id="chatMsgCount">聊天消息（'+S.chatMsgs.length+'条）</div>'+
+    '<div class="chat-msg-list" id="chatMsgList"></div>'+
+    '<div class="chat-add-row"><select id="chatAddType"><option value="me">我说</option><option value="other">对方说</option><option value="time">时间</option></select><input id="chatAddText" placeholder="输入消息内容..." onkeydown="if(event.key===\'Enter\')addChatMsg()"><div class="add-btn" onclick="addChatMsg()">+</div></div>'+
+  '</div><div style="padding:0 16px 8px"><div style="font-size:14px;font-weight:600;color:#333;margin-bottom:8px">预览效果</div></div><div class="preview-frame"><div class="preview-inner" id="prevWxChat"></div></div><div class="export-bar"><button class="btn-primary" onclick="exportScreenshot(\'prevWxChat\')">保存截图</button><button class="btn-secondary" onclick="exportScreenshot(\'prevWxChat\',true)">仅导出预览</button></div>';
+  var isAlreadyOnEditor=screenStack[screenStack.length-1]==='editorScreen';
+  document.getElementById('editorContent').innerHTML=html;
+  document.getElementById('editorScreen').scrollTop=0;
+  if(!isAlreadyOnEditor)goTo('editorScreen');
+  setTimeout(function(){renderChatMsgList();renderWxChat();},50);
+}
+
+function uploadAvatar(input,isMe){
+  var file=input.files[0];if(!file)return;
+  if(file.size>2*1024*1024){showModal('图片不能超过2MB');return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    if(isMe){S.chatMyAvatarImg=e.target.result;}
+    else{S.chatAvatarImg=e.target.result;}
+    edWxChat();
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderChatMsgList(){
+  var el=document.getElementById('chatMsgList');if(!el)return;
+  if(S.chatMsgs.length===0){el.innerHTML='<div style="padding:20px;text-align:center;color:#999;font-size:13px">暂无消息，请在下方添加</div>';return;}
+  el.innerHTML=S.chatMsgs.map(function(m,i){
+    var tag=m.type==='time'?'时间':m.from==='me'?'我':'对方';
+    var tagColor=m.type==='time'?'#999':m.from==='me'?'#07c160':'#1677ff';
+    return '<div class="chat-msg-item"><span class="tag" style="color:'+tagColor+';font-weight:600">'+tag+'</span><span class="txt">'+escapeHtml(m.text)+'</span><div class="del-btn" onclick="delChatMsg('+i+')">x</div></div>';
+  }).join('');
+}
+
+function addChatMsg(){
+  var type=document.getElementById('chatAddType').value;
+  var text=document.getElementById('chatAddText').value.trim();
+  if(!text)return;
+  if(type==='time'){S.chatMsgs.push({type:'time',text:text});}
+  else{S.chatMsgs.push({type:'text',from:type,text:text});}
+  document.getElementById('chatAddText').value='';
+  renderChatMsgList();renderWxChat();
+  var countEl=document.getElementById('chatMsgCount');
+  if(countEl)countEl.textContent='聊天消息（'+S.chatMsgs.length+'条）';
+}
+
+function delChatMsg(idx){
+  S.chatMsgs.splice(idx,1);
+  renderChatMsgList();renderWxChat();
+}
+
+function renderWxChat(){
+  var el=document.getElementById('prevWxChat');if(!el)return;
+  var ac=safeColor(S.chatAvatarColor);
+  var mc=safeColor(S.chatMyAvatarColor);
+  var msgs=S.chatMsgs.map(function(m){
+    if(m.type==='time'){
+      return '<div class="wx-chat-time"><span>'+escapeHtml(m.text)+'</span></div>';
+    }
+    var isMe=m.from==='me';
+    var avatarC=isMe?mc:ac;
+    var avatarT=isMe?escapeHtml(S.chatMyAvatarText||'我'):escapeHtml(S.chatAvatarText||'?');
+    var avatarImg=isMe?S.chatMyAvatarImg:S.chatAvatarImg;
+    var avatarH=avatarImg?'<img src="'+avatarImg+'" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0">':'<div class="wx-chat-avatar" style="background:'+avatarC+'">'+avatarT+'</div>';
+    return '<div class="wx-chat-row'+(isMe?' me':'')+'">'+
+      avatarH+
+      '<div class="wx-chat-bubble">'+escapeHtml(m.text)+'</div>'+
+    '</div>';
+  }).join('');
+
+  el.innerHTML='<div class="wx-chat-page">'+
+    statusHTML('#333')+
+    '<div class="navbar" style="color:#333;background:#ececec"><button class="back-btn">&lsaquo;</button><span class="title">'+escapeHtml(S.chatName)+'</span><span class="right-btn">&#8943;</span></div>'+
+    '<div class="wx-chat-body">'+msgs+'</div>'+
+    // 底部输入栏
+    '<div class="wx-chat-input-bar">'+
+      '<div class="voice-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.8"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div>'+
+      '<div class="input-area">输入消息...</div>'+
+      '<div class="emoji-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>'+
+      '<div class="plus-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>'+
+    '</div>'+
+    '<div class="home-indicator"></div>'+
+  '</div>';
+}
+
+// ===== EXPORT SCREENSHOT =====
+function exportScreenshot(previewId,onlyPreview){
+  var el=document.getElementById(previewId);
+  if(!el){showModal('预览区域未找到');return;}
+  if(typeof html2canvas==='undefined'){showModal('截图库加载中，请稍后重试');return;}
+  html2canvas(el,{scale:3,useCORS:true,backgroundColor:null,logging:false}).then(function(canvas){
+    var link=document.createElement('a');
+    link.download='wallet-'+Date.now()+'.png';
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+  }).catch(function(e){showModal('截图失败：'+e.message);});
+}
+
+// ===== PWA =====
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(function(){});}
+
+// ===== LOAD html2canvas =====
+(function(){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';s.crossOrigin='anonymous';s.integrity='sha512-s/XK4vYVX0iUnfcE/PH0kMXhJpzh4CWRiw4MAtGed/OLrip0+pSmd6cFSa0XHdL2O3BWRSBOBv7pXpqFPOL9A==';document.head.appendChild(s);})();
+
+// ===== AUTO-SAVE STATE =====
+var _saveTimer;
+function scheduleSave(){clearTimeout(_saveTimer);_saveTimer=setTimeout(saveState,300);}
+// Proxy-like save: wrap S in a setter-aware pattern
+// Since we mutate S directly, we hook into refreshPreview and render* calls
+var _origRefresh=null;
+(function(){
+  var origRenderHome=renderHome;
+  // Intercept all oninput by saving after each render cycle
+  var origEditorShell=editorShell;
+  editorShell=function(t,f,pf,pid){
+    var wrappedPf=function(){pf();scheduleSave();};
+    origEditorShell(t,f,wrappedPf,pid);
+    // Also wrap refreshPreview
+    var origRP=refreshPreview;
+    refreshPreview=function(){origRP();scheduleSave();};
+  };
+})();
+// Also save when chat messages change
+var origAddChat=addChatMsg,origDelChat=delChatMsg;
+addChatMsg=function(){origAddChat();scheduleSave();};
+delChatMsg=function(i){origDelChat(i);scheduleSave();};
+// Save on avatar upload
+var origUpload=uploadAvatar;
+uploadAvatar=function(input,isMe){origUpload(input,isMe);scheduleSave();};
+
+// ===== INIT =====
+var saved=loadState();
+if(saved){
+  renderHome();
+  showModal('检测到上次的数据，是否恢复？',{
+    title:'数据恢复',
+    okText:'恢复',
+    cancelText:'重新开始',
+    onOk:function(){
+      // Restore saved state
+      for(var k in saved){if(saved.hasOwnProperty(k))S[k]=saved[k];}
+    },
+    onCancel:function(){
+      // Clear saved data, use defaults
+      try{localStorage.removeItem(STORE_KEY);}catch(e){}
+    }
+  });
+}else{
+  renderHome();
+}
+</script>
+</body>
+</html>
